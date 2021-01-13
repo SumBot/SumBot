@@ -24,199 +24,204 @@
 #########################################################################################
 
 import io
+import random
 from random import randint
 import aiohttp
 import discord
 import pyfiglet
 from discord.ext import commands
+from db import db
+from PIL import Image
+import os
+from PIL import ImageFont, ImageDraw, ImageOps
+from discord.ext.commands import command, guild_only, has_permissions, bot_has_permissions, cooldown
 
 
 class Fun(commands.Cog):
     """
     Fun commands
     """
+
     def __init__(self, client):
         self.client = client
+        self.db = db.db
+        self.cr = db.cr
 
-    @commands.command(help='To take a random number')
-    @commands.guild_only()
+    @command(help='To take a random number', usage="roll [number]")
+    @guild_only()
+    @cooldown(1, 3, commands.BucketType.user)
     async def roll(self, ctx, faces: int = 100):
-
+        msg = "You have got"
+        if db.get_lang(ctx) == "ar":
+            msg = "لقد حصلت على"
         number = randint(1, faces)
-        await ctx.send(f'🎲 You have got {number} !')
+        await ctx.send(embed=discord.Embed(
+            description=f'**🎲 {msg} `{str(number)}` !**',
+            color=discord.Colour.green()
+        ))
 
-    @roll.error
-    async def roll_error(self, ctx, error):
-        if isinstance(error, commands.BadArgument):
-            await ctx.send('🙄 An error occurred, please check the value')
-
-        if isinstance(ctx.channel, discord.channel.DMChannel):
-            pass
-
-    @commands.command(name='iq', help="IQ proportions to fun")
-    @commands.guild_only()
-    @commands.cooldown(1, 10, commands.BucketType.user)
+    @command(name='iq', help="IQ proportions to fun", usage="iq [@member]")
+    @guild_only()
+    @cooldown(1, 3, commands.BucketType.user)
     async def smart(self, ctx, member: discord.Member = None):
+        # Open template and get drawing context
+        im = Image.open('img/progress.png').convert('RGB')
+        draw = ImageDraw.Draw(im)
+
+        # Cyan-ish fill colour
+        color = (98, 211, 245)
+
+        # Draw circle at right end of progress bar
+        x, y, diam = 254, 8, 34
+        draw.ellipse([x, y, x + diam, y + diam], fill=color)
+
+        # Flood-fill from extreme left of progress bar area to behind circle
+        # await ctx.send(file=discord.File("img/result.png"))
         if member == None:
             member = ctx.author
 
-            nam = randint(1, 200)
-
+            nam = randint(1, 100)
+            msg = "progress IQ for"
+            if db.get_lang(ctx) == "ar":
+                msg = "نسبه ذكاء"
             embed = discord.Embed(
-                description=f'For {member.display_name} IQ = `{nam}`',
+                description=f'{msg} {member.display_name} = `{nam}`',
                 color=ctx.author.color,
                 timestamp=ctx.message.created_at)
             embed.set_footer(text=ctx.guild.name, icon_url=ctx.guild.icon_url)
             embed.set_author(name=self.client.user.name, icon_url=self.client.user.avatar_url)
-            await ctx.send(embed=embed)
+
+            ImageDraw.floodfill(im, xy=(nam, 24), value=color, thresh=100)
+            im.save('img/result.png')
+            file = discord.File(f"./img/result.png", filename="result.png")
+            embed.set_image(url="attachment://result.png")
+            await ctx.send(file=file, embed=embed)
+            os.remove("/img/result.png")
 
         elif member == self.client.user:
+            sumbot_iq = "SumBot is smarter than your father `:-)`"
+            if db.get_lang(ctx) == "ar":
+                sumbot_iq = "سوم بوت اذكى من ابوك `:-)`"
             embed = discord.Embed(
-                description='For SumBot is High IQ = `:-)`',
+                description=sumbot_iq,
                 color=ctx.author.color,
                 timestamp=ctx.message.created_at)
             embed.set_footer(text=ctx.guild.name, icon_url=ctx.guild.icon_url)
             embed.set_author(name=self.client.user.name, icon_url=self.client.user.avatar_url)
-            await ctx.send(embed=embed)
+            ImageDraw.floodfill(im, xy=(14, 24), value=color, thresh=100)
+            file = discord.File(f"./img/result.png", filename="result.png")
+            im.save('img/result.png')
+            embed.set_image(url="attachment://result.png")
+            await ctx.send(file=file, embed=embed)
+            os.remove("/img/result.png")
 
         else:
-            nam = randint(1, 200)
+            msg = "progress IQ for"
+            if db.get_lang(ctx) == "ar":
+                msg = "نسبه ذكاء"
+            nam = randint(1, 100)
             embed = discord.Embed(
-                description=f'For {member.display_name} IQ = `{nam}`',
+                description=f'{msg} {member.display_name} = `{nam}`',
                 color=ctx.author.color,
                 timestamp=ctx.message.created_at)
             embed.set_footer(text=ctx.guild.name, icon_url=ctx.guild.icon_url)
             embed.set_author(name=self.client.user.name, icon_url=self.client.user.avatar_url)
-            await ctx.send(embed=embed)
+            ImageDraw.floodfill(im, xy=(nam, 24), value=color, thresh=int(nam / 1.75), border=None)
+            im.save('img/result.png')
+            file = discord.File(f"./img/result.png", filename="result.png")
+            embed.set_image(url="attachment://result.png")
+            await ctx.send(file=file, embed=embed)
+            os.remove("/img/result.png")
 
-    @smart.error
-    async def smart_error(self, ctx, error):
-        if isinstance(error, commands.errors.MemberNotFound):
-            await ctx.send('🙄 I could not find this member')
-        
-        elif isinstance(ctx.channel, discord.channel.DMChannel):
-            pass
-        else:
-            await ctx.send(error)
-
-    @commands.command(help='Rewrite what you say fondly')
+    @command(help='Rewrite what you say jotting', usage="tag <message>")
+    @cooldown(1, 3, commands.BucketType.user)
+    @guild_only()
     async def tag(self, ctx, *, arg: str):
+        if ctx.author.bot:
+            return
+        msg = "The number of characters must be less than `20`"
+        art = pyfiglet.figlet_format(arg)
+        if db.get_lang(ctx) == "ar":
+            msg = "يجب أن يكون عدد الأحرف أقل من `20`"
+        if len(arg) >= 20:
+            await ctx.send(embed=discord.Embed(
+                description="❌ {}".format(msg),
+                color=discord.Colour.red()
+            ))
+            return
+        await ctx.send(f"""```javascript\n{art}```""")
+
+    @command(help='Rewrite what you say awesome ASCII', usage="ascll <message>")
+    @cooldown(1, 3, commands.BucketType.user)
+    @guild_only()
+    async def ascll(self, ctx, *, arg: str):
+        msg = "The number of characters must be less than `30`"
+        font = [
+            'slant',
+            "3-d",
+            "3x5",
+            "5lineoblique",
+            "alphabet",
+            "letters",
+            "bubble",
+            "bulbhead",
+            "digital"
+        ]
+        ran = random.choice(font)
+        if db.get_lang(ctx) == "ar":
+            msg = "يجب أن يكون عدد الأحرف أقل من `30`"
         if len(arg) >= 30:
-            await ctx.send("The number of characters must be less than `30`")
-        else:
-            await ctx.send(f"""```javascript\n{pyfiglet.figlet_format(arg)}```""")
+            await ctx.send(embed=discord.Embed(
+                description="❌ {}".format(msg),
+                color=discord.Colour.red()
+            ))
+            return
+        await ctx.send(f"""```javascript\n{pyfiglet.figlet_format(text=arg, font=ran)}```""")
 
-    @tag.error
-    async def tag_error(self, ctx, error):
-        if isinstance(ctx.channel, discord.channel.DMChannel):
-            pass
-        if isinstance(error, commands.MissingRequiredArgument):
-            embed = discord.Embed(
-                description='**Used:** `{}tag <messgae>`\n**Type:** Fun'.format(self.client.command_prefix),
-                color=ctx.author.color,
-                timestamp=ctx.message.created_at)
-            embed.set_author(name=self.client.user.display_name, icon_url=self.client.user.avatar_url)
-            embed.set_image(url='http://g.recordit.co/fAUUIm1npn.gif')
-            await ctx.send(embed=embed)
-
-    @commands.command(aliases=['reverse', 'rev'], help='to reverse message to fun')
-    @commands.guild_only()
+    @command(aliases=['reverse', 'rev'], help='To revers your message', usage='revers <message>')
+    @guild_only()
+    @cooldown(1, 3, commands.BucketType.user)
     async def revers(self, ctx, *, message):
-        await ctx.send(message[::-1])
+        await ctx.send(embed=discord.Embed(
+            description=message[::-1],
+            color=discord.Colour.green()
+        ))
 
-    @revers.error
-    async def rev_error(self, ctx, error):       
-        if isinstance(ctx.channel, discord.channel.DMChannel):
-            pass
-        if isinstance(error, commands.MissingRequiredArgument):
-            embed = discord.Embed(
-                description='**Used:** `{}rev <message>`\n**Type:** Fun'.format(self.client.command_prefix),
-                color=ctx.author.color,
-                timestamp=ctx.message.created_at)
-            embed.set_author(name=self.client.user.display_name, icon_url=self.client.user.avatar_url)
-            embed.set_image(url='http://g.recordit.co/fxPjNqrbLV.gif')
-            await ctx.send(embed=embed)
-
-    @commands.command(help='To make a clyde bot write whatever you want')
-    @commands.guild_only()
-    async def clyde(self, ctx, *, text):
-        async with aiohttp.ClientSession() as cs:
-            async with cs.get(f"https://nekobot.xyz/api/imagegen?type=clyde&text={text}") as r:
-                res = await r.json()
-                embed = discord.Embed(
-                    color=ctx.author.color,
-                    description=f"Clyde Bot, [link Img]({res['message']})",
-                    timestamp=ctx.message.created_at
-                )
-                embed.set_image(url=res['message'])
-                embed.set_footer(text=ctx.guild.name, icon_url=ctx.guild.icon_url)
-                embed.set_author(name=self.client.user.name, icon_url=self.client.user.avatar_url)
-                await ctx.send(embed=embed)
-
-    @clyde.error
-    async def clyde_error(self, ctx, error):
-        if isinstance(error, commands.MissingRequiredArgument):
-            embed = discord.Embed(
-                color=ctx.author.color,
-                description='**Used:** `{}clyde <text>`\n**Type:** fun'.format(self.client.command_prefix),
-                timestamp=ctx.message.created_at
-            )
-            embed.set_footer(text=ctx.guild.name, icon_url=ctx.guild.icon_url)
-            embed.set_author(name=self.client.user.name, icon_url=self.client.user.avatar_url)
-            await ctx.send(embed=embed)
-
-    @commands.command(help='To make a competitive match between two people')
-    @commands.guild_only()
+    @command(help='To make a competitive match between two people', usage="vs <@member1> <@member2>")
+    @guild_only()
+    @cooldown(1, 3, commands.BucketType.user)
     async def vs(self, ctx, member1: discord.Member, member2: discord.Member):
         member1 = member1.avatar_url_as(size=1024, format=None, static_format='png')
         member2 = member2.avatar_url_as(size=1024, format=None, static_format='png')
+
         async with aiohttp.ClientSession() as cs:
             async with cs.get(
                     f"https://nekobot.xyz/api/imagegen?type=whowouldwin&user1={member1}&user2={member2}") as r:
                 res = await r.json()
                 embed = discord.Embed(
                     color=ctx.author.color,
-                    description=f"Who Would Win, [Link img]({res['message']})",
+                    description=f"[Link img]({res['message']})",
                     timestamp=ctx.message.created_at
                 )
                 embed.set_image(url=res["message"])
                 embed.set_footer(text=ctx.guild.name, icon_url=ctx.guild.icon_url)
                 embed.set_author(name=self.client.user.name, icon_url=self.client.user.avatar_url)
-                msg = await ctx.send(embed=embed)
+                await ctx.send(embed=embed)
 
-                await msg.add_reaction('1️⃣')
-                await msg.add_reaction('2️⃣')
-
-    @vs.error
-    async def vs_error(self, ctx, error):
-        if isinstance(error, commands.BadArgument):
-            embed = discord.Embed(
-                color=ctx.author.color,
-                description='**Used:** `{}vs <member1> <member2>`\n**Type:** fun'.format(self.client.command_prefix),
-                timestamp=ctx.message.created_at
-            )
-            embed.set_footer(text=ctx.guild.name, icon_url=ctx.guild.icon_url)
-            embed.set_author(name=self.client.user.name, icon_url=self.client.user.avatar_url)
-            await ctx.send(embed=embed)
-        elif isinstance(error, commands.MissingRequiredArgument):
-            embed = discord.Embed(
-                color=ctx.author.color,
-                description='**Used:** `{}vs <member1> <member2>`\n**Type:** fun'.format(self.client.command_prefix),
-                timestamp=ctx.message.created_at
-            )
-            embed.set_footer(text=ctx.guild.name, icon_url=ctx.guild.icon_url)
-            embed.set_author(name=self.client.user.name, icon_url=self.client.user.avatar_url)
-            await ctx.send(embed=embed)
-
-    @commands.command(help='Modify the profile picture to become funny')
-    @commands.guild_only()
-    @commands.cooldown(1, 30, commands.BucketType.user)
+    @command(help='Modify the profile picture to become funny', usage="magik [@member] [intensity]")
+    @guild_only()
+    @cooldown(1, 30, commands.BucketType.user)
     async def magik(self, ctx, member: discord.Member, intensity: int = 5):
+        member = member if member else ctx.author
         avatar = member.avatar_url_as(size=1024, format=None, static_format='png')
-        emoji = "🐧"
-
-        message = await ctx.send(f"{emoji} — **Processing the image please wait!**")
-        await message.delete(delay=7)
+        msg = "Processing the image please wait!"
+        if db.get_lang(ctx):
+            msg = "جاري معالجة الصورة يرجى الانتظار!"
+        message = await ctx.send(embed=discord.Embed(
+            description=f"{str(self.client.get_emoji(797134049939816478))} — **{msg}**",
+            color=discord.Colour.green()
+        ))
+        await message.delete(delay=15)
 
         async with aiohttp.ClientSession() as cs:
             async with cs.get(f"https://nekobot.xyz/api/imagegen?type=magik&image={avatar}&intensity={intensity}") as r:
@@ -231,141 +236,11 @@ class Fun(commands.Cog):
                 embed.set_author(name=self.client.user.name, icon_url=self.client.user.avatar_url)
                 await ctx.send(embed=embed)
 
-    @magik.error
-    async def magik_error(self, ctx, error):
-        if isinstance(error, commands.BadArgument):
-            embed = discord.Embed(
-                color=ctx.author.color,
-                description='**Used:** `{}magik <member>`\n**Type:** fun'.format(self.client.command_prefix),
-                timestamp=ctx.message.created_at
-            )
-            embed.set_footer(text=ctx.guild.name, icon_url=ctx.guild.icon_url)
-            embed.set_author(name=self.client.user.name, icon_url=self.client.user.avatar_url)
-            await ctx.send(embed=embed)
-        elif isinstance(error, commands.MissingRequiredArgument):
-            embed = discord.Embed(
-                color=ctx.author.color,
-                description='**Used:** `{}magik <member>`\n**Type:** fun'.format(self.client.command_prefix),
-                timestamp=ctx.message.created_at
-            )
-            embed.set_footer(text=ctx.guild.name, icon_url=ctx.guild.icon_url)
-            embed.set_author(name=self.client.user.name, icon_url=self.client.user.avatar_url)
-            await ctx.send(embed=embed)
-
-    @commands.command(help='Modify the profile picture to be on iPhone 11 Pro')
-    @commands.guild_only()
-    async def iphone(self, ctx, member: discord.Member):
-        if member == None:
-            member = ctx.author
-        picture = member.avatar_url_as(size=1024, format=None, static_format='png')
-        async with aiohttp.ClientSession() as cs:
-            async with cs.get(f"https://nekobot.xyz/api/imagegen?type=iphonex&url={picture}") as r:
-                res = await r.json()
-                embed = discord.Embed(
-                    color=ctx.author.color,
-                    description=f"[Link Img]({res['message']})",
-                    timestamp=ctx.message.created_at
-                )
-                embed.set_image(url=res["message"])
-                embed.set_footer(text=ctx.guild.name, icon_url=ctx.guild.icon_url)
-                embed.set_author(name=self.client.user.name, icon_url=self.client.user.avatar_url)
-                await ctx.send(embed=embed)
-
-    @iphone.error
-    async def iphone_error(self, ctx, error):
-        if isinstance(error, commands.MissingRequiredArgument):
-            embed = discord.Embed(
-                color=ctx.author.color,
-                description='**Used:** `{}iphone <member>`\n**Type:** fun'.format(self.client.command_prefix),
-                timestamp=ctx.message.created_at
-            )
-            embed.set_footer(text=ctx.guild.name, icon_url=ctx.guild.icon_url)
-            embed.set_author(name=self.client.user.name, icon_url=self.client.user.avatar_url)
-            await ctx.send(embed=embed)
-
-    @commands.command(help='To write a comment in YouTube for fun')
-    @commands.guild_only()
-    async def youtube(self, ctx, *, comment):
-        picture = ctx.author.avatar_url_as(size=1024, format=None, static_format='png')
-        async with aiohttp.ClientSession() as cs:
-            async with cs.get(f"https://some-random-api.ml/canvas/youtube-comment?avatar={picture}&username={ctx.author.name}&comment={comment}") as r:
-                res = io.BytesIO(await r.read())
-                youtube_file = discord.File(res, filename=f"youtube.jpg")
-                embed = discord.Embed(
-                    color=ctx.author.color,
-                    description=f"Youtube comment, [Link Img]()",
-                    timestamp=ctx.message.created_at
-                )
-                embed.set_image(url="attachment://youtube.jpg")
-                embed.set_footer(text=ctx.guild.name, icon_url=ctx.guild.icon_url)
-                embed.set_author(name=self.client.user.name, icon_url=self.client.user.avatar_url)
-
-                await ctx.send(embed=embed, file=youtube_file)
-
-    @youtube.error
-    async def youtube_error(self, ctx, error):
-        if isinstance(error, commands.MissingRequiredArgument):
-            embed = discord.Embed(
-                color=ctx.author.color,
-                description='**Used:** `{}youtube <message>`\n**Type:** fun'.format(self.client.command_prefix),
-                timestamp=ctx.message.created_at
-            )
-            embed.set_footer(text=ctx.guild.name, icon_url=ctx.guild.icon_url)
-            embed.set_author(name=self.client.user.name, icon_url=self.client.user.avatar_url)
-            await ctx.send(embed=embed)
-
-    @commands.command(help='To make his photos look really interesting')
-    @commands.guild_only()
-    async def captcha(self, ctx, member: discord.Member):
-        if member == None:
-            member = ctx.author
-        avatar = member.avatar_url_as(size=1024, format=None, static_format='png')
-        async with aiohttp.ClientSession() as cs:
-            async with cs.get(f"https://nekobot.xyz/api/imagegen?type=captcha&url={avatar}&username=Orange") as r:
-                res = await r.json()
-                embed = discord.Embed(
-                    color=ctx.author.color,
-                    description=f"Captcha Verification, [Link Img]({res['message']})",
-                    timestamp=ctx.message.created_at
-                )
-                embed.set_image(url=res["message"])
-                embed.set_footer(text=ctx.guild.name, icon_url=ctx.guild.icon_url)
-                embed.set_author(name=self.client.user.name, icon_url=self.client.user.avatar_url)
-                await ctx.send(embed=embed)
-
-    @commands.command(help='Writing his tweet on Twitter')
-    @commands.guild_only()
-    async def tweet(self, ctx, username: str, *, text: str):
-        async with aiohttp.ClientSession() as cs:
-            async with cs.get(f"https://nekobot.xyz/api/imagegen?type=tweet&username={username}&text={text}") as r:
-                res = await r.json()
-                embed = discord.Embed(
-                    color=ctx.author.color,
-                    description=f"User Tweet, [Link Img]({res['message']})",
-                    timestamp=ctx.message.created_at
-                )
-                embed.set_image(url=res["message"])
-                embed.set_footer(text=ctx.guild.name, icon_url=ctx.guild.icon_url)
-                embed.set_author(name=self.client.user.name, icon_url=self.client.user.avatar_url)
-                await ctx.send(embed=embed)
-
-    @tweet.error
-    async def tweet_error(self, ctx, error):
-        if isinstance(error, commands.MissingRequiredArgument):
-            embed = discord.Embed(
-                color=ctx.author.color,
-                description='**Used:** `{}tweet <username> <text>`\n**Type:** fun'.format(self.client.command_prefix),
-                timestamp=ctx.message.created_at
-            )
-            embed.set_footer(text=ctx.guild.name, icon_url=ctx.guild.icon_url)
-            embed.set_author(name=self.client.user.name, icon_url=self.client.user.avatar_url)
-            await ctx.send(embed=embed)
-
-    @commands.command()
-    @commands.guild_only()
+    @command(help="Makes your image like you are dangerous", usage="triggered [@member]")
+    @guild_only()
+    @cooldown(1, 3, commands.BucketType.user)
     async def triggered(self, ctx, member: discord.Member):
-        if member == None:
-            member = ctx.author
+        member = member if member else ctx.author
         picture = member.avatar_url_as(size=1024, format=None, static_format='png')
         async with aiohttp.ClientSession() as cs:
             async with cs.get(f"https://some-random-api.ml/canvas/triggered?avatar={picture}") as r:
@@ -381,100 +256,19 @@ class Fun(commands.Cog):
                 embed.set_author(name=self.client.user.name, icon_url=self.client.user.avatar_url)
                 await ctx.send(embed=embed, file=triggered_file)
 
-
-
-    @commands.command(help='to show random img cat')
-    @commands.guild_only()
-    async def cat(self, ctx):
+    @command(help='to show random img memes', usage="memes")
+    @guild_only()
+    @cooldown(1, 3, commands.BucketType.user)
+    async def memes(self, ctx):
         async with aiohttp.ClientSession() as cs:
-            async with cs.get('https://some-random-api.ml/img/cat') as r:
+            async with cs.get("https://some-random-api.ml/meme") as r:
                 res = await r.json()
                 embed = discord.Embed(
                     color=ctx.author.color,
-                    description=f"[Random Cat]({res['link']})",
-                    timestamp=ctx.message.created_at
-                )
-                embed.set_image(url=res['link'])
-                embed.set_footer(text=ctx.guild.name, icon_url=ctx.guild.icon_url)
-                embed.set_author(name=self.client.user.name, icon_url=self.client.user.avatar_url)
-                await ctx.send(embed=embed)
-
-    @commands.command(help='to show random img panda')
-    @commands.guild_only()
-    async def panda(self, ctx):
-        async with aiohttp.ClientSession() as cs:
-            async with cs.get("https://some-random-api.ml/img/panda") as r:
-                res = await r.json()
-                embed = discord.Embed(
-                    color=ctx.author.color,
-                    description=f"[Random Panda]({res['link']})",
-                    timestamp=ctx.message.created_at
-                )
-                embed.set_image(url=res['link'])
-                embed.set_footer(text=ctx.guild.name, icon_url=ctx.guild.icon_url)
-                embed.set_author(name=self.client.user.name, icon_url=self.client.user.avatar_url)
-                await ctx.send(embed=embed)
-
-    @commands.command(help='to show random img coffee')
-    @commands.guild_only()
-    async def coffee(self, ctx):
-        async with aiohttp.ClientSession() as cs:
-            async with cs.get("https://coffee.alexflipnote.dev/random.json") as r:
-                res = await r.json()
-                embed = discord.Embed(
-                    color=ctx.author.color,
-                    description=f"Daily Coffee, [link Img]({res['file']})",
-                    timestamp=ctx.message.created_at
-                )
-                embed.set_image(url=res["file"])
-                embed.set_footer(text=ctx.guild.name, icon_url=ctx.guild.icon_url)
-                embed.set_author(name=self.client.user.name, icon_url=self.client.user.avatar_url)
-                await ctx.send(embed=embed)
-
-    @commands.command(help='to show random img dog')
-    @commands.guild_only()
-    async def dog(self, ctx):
-        async with aiohttp.ClientSession() as cs:
-            async with cs.get('https://dog.ceo/api/breeds/image/random') as r:
-                res = await r.json()
-                embed = discord.Embed(
-                    color=ctx.author.color,
-                    description=f"Random Dog, [Link img]({res['message']})",
-                    timestamp=ctx.message.created_at
-                )
-                embed.set_image(url=res['message'])
-                embed.set_footer(text=ctx.guild.name, icon_url=ctx.guild.icon_url)
-                embed.set_author(name=self.client.user.name, icon_url=self.client.user.avatar_url)
-                await ctx.send(embed=embed)
-
-    @commands.command(help='to show random img fox')
-    @commands.guild_only()
-    async def fox(self, ctx):
-        async with aiohttp.ClientSession() as cs:
-            async with cs.get('https://randomfox.ca/floof/') as r:
-                res = await r.json()
-                embed = discord.Embed(
-                    color=ctx.author.color,
-                    description=f"Random Fox, [link Img]({res['image']})",
+                    description=f"[Link Img]({res['image']})",
                     timestamp=ctx.message.created_at
                 )
                 embed.set_image(url=res['image'])
-                embed.set_footer(text=ctx.guild.name, icon_url=ctx.guild.icon_url)
-                embed.set_author(name=self.client.user.name, icon_url=self.client.user.avatar_url)
-                await ctx.send(embed=embed)
-
-    @commands.command(help='to show random img redpanda')
-    @commands.guild_only()
-    async def redpanda(self, ctx):
-        async with aiohttp.ClientSession() as cs:
-            async with cs.get("https://some-random-api.ml/img/red_panda") as r:
-                res = await r.json()
-                embed = discord.Embed(
-                    color=ctx.author.color,
-                    description=f"Random Panda, [Link Img]({res['link']})",
-                    timestamp=ctx.message.created_at
-                )
-                embed.set_image(url=res['link'])
                 embed.set_footer(text=ctx.guild.name, icon_url=ctx.guild.icon_url)
                 embed.set_author(name=self.client.user.name, icon_url=self.client.user.avatar_url)
                 await ctx.send(embed=embed)
