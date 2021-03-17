@@ -5,7 +5,6 @@ asyncio~=3.4.3
 prettytable~=1.0.1
 arabic_reshaper
 youtube_dlc
-aiohttp~=3.6.3
 discord~=1.0.1
 requests~=2.25.0
 spotipy~=2.16.1
