@@ -102,15 +102,14 @@ class SumBot(commands.Bot):
 
 		status = [
 			'@help',
-			'You can add custom lang(ar, en)',
-			'You can add custom prefix'
+			'One of the best open source discord bots'
 		]
 		await self.change_presence(activity=discord.Game(type=discord.ActivityType.listening, name=(status[0])))
 		await asyncio.sleep(30)
 		await self.change_presence(activity=discord.Activity(type=discord.ActivityType.watching, name=status[1]))
 		await asyncio.sleep(10)
-		await self.change_presence(activity=discord.Activity(type=discord.ActivityType.watching, name=status[2]))
-		await asyncio.sleep(10)
+		# await self.change_presence(activity=discord.Activity(type=discord.ActivityType.watching, name=status[2]))
+		# await asyncio.sleep(10)
 
 	@tasks.loop(seconds=5)
 	async def del_cooldown(self):

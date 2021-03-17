@@ -141,7 +141,8 @@ class ErrorHandler(commands.Cog):
             await ctx.send(embed=discord.Embed(
                 description=f"This command is currently **on cooldown** for ,Please **try again in** `{'%02d seconds' % (s,)}`.",
                 color=discord.Colour.red()
-            ))
+            ),  delete_after=2)
+
             db.cr.execute("INSERT OR IGNORE INTO cooldown(user_id) VALUES(?)", (ctx.author.id,))
             db.commit()
             return
@@ -186,7 +187,7 @@ class ErrorHandler(commands.Cog):
         elif isinstance(error, commands.errors.MissingPermissions):
             await ctx.send(error)
         else:
-            print(error)
+            pass
 
 
 def setup(client):

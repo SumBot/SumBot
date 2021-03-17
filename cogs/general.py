@@ -389,7 +389,7 @@ class General(commands.Cog):
                 # timestamp=ctx.message.created_at
             )
             embed.set_footer(text=f"Prefix in the server: {get_prefix(ctx)}")
-            embed.set_author(name=f"{self.client.user} | Total commands: {len(self.client.commands)}", icon_url=self.client.user.avatar_url)
+            embed.set_author(name=f"{self.client.user.name} | Total commands: {len(self.client.commands)}", icon_url=self.client.user.avatar_url)
             embed.set_thumbnail(url=self.client.user.avatar_url)
             await ctx.channel.send(embed=embed, delete_after=5)
             return
