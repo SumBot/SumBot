@@ -43,15 +43,15 @@ class Mod(commands.Cog):
     @has_permissions(manage_guild=True)
     @guild_only()
     @cooldown(1, 3, commands.BucketType.user)
-    async def prefix(self, ctx):
+    async def _prefix(self, ctx):
         await ctx.send(f"please use `{get_prefix(ctx)}config prefix`")
 
-    @command(name='lang', aliases=['set_lang', "set-lang", "prefix"], usage="config lang <new_lang>")
+    @command(name='lang', aliases=['set_lang', "set-lang", "language"], usage="config lang <new_lang>")
     @has_permissions(manage_guild=True)
     @guild_only()
     @cooldown(1, 3, commands.BucketType.user)
     async def lang(self, ctx):
-        await ctx.send(f"please use `{get_prefix(ctx)}config prefix`")
+        await ctx.send(f"please use `{get_prefix(ctx)}config lang`")
 
     @command(help='to re-send the your message', usage="say <message>")
     @guild_only()

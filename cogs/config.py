@@ -23,7 +23,7 @@ class Config(commands.Cog):
         )
 
     @config_commands.command(
-        name="lang", aliases=["language"], invoke_without_command=True, usage="config lang <new_lang(en, ar)>")
+        name="lang", aliases=['set_lang', "set-lang", "language"], invoke_without_command=True, usage="config lang <new_lang(en, ar)>")
     @has_permissions(manage_guild=True)
     @guild_only()
     @cooldown(1, 10, commands.BucketType.guild)
@@ -48,7 +48,7 @@ class Config(commands.Cog):
                 color=discord.Colour.red()
             ))
 
-    @config_commands.command(name="prefix", invoke_without_command=True, usage="config prefix <new_prefix>")
+    @config_commands.command(name="prefix", aliases=['set_prefix', "set-prefix", "setprefix"], invoke_without_command=True, usage="config prefix <new_prefix>")
     @has_permissions(manage_guild=True)
     @guild_only()
     @cooldown(1, 10, commands.BucketType.guild)
