@@ -39,7 +39,7 @@ logger.addHandler(handler)
 
 with open('./config.json', 'r') as f:
 	config = json.load(f)
-
+# NzM4MTIwNjMzNDMwNTczMTc2.XyHSaA.GZl-OE7WaiACc49VYxPGsZ-ceLg
 EXTENSIONS = [
 	"general",
 	"fun",
