@@ -1,3 +1,4 @@
+The bot is deleted
 
 <h1 align="center">
   <br>
